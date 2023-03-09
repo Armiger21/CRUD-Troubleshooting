@@ -1,5 +1,6 @@
 ﻿using CPW219_CRUD_Troubleshooting.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CPW219_CRUD_Troubleshooting.Controllers
 {
@@ -12,10 +13,11 @@ namespace CPW219_CRUD_Troubleshooting.Controllers
             context = dbContext;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            List<Student> products = StudentDb.GetStudents(context);
-            return View();
+            List<Student> students = await (from student in context.Students
+                                            select student).ToListAsync();
+            return View(students);
         }
 
         public IActionResult Create()
@@ -24,56 +26,86 @@ namespace CPW219_CRUD_Troubleshooting.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(Student p)
+        public async Task<IActionResult> Create(Student p)
         {
             if (ModelState.IsValid)
             {
-                StudentDb.Add(p, context);
+                context.Students.Add(p);
+                await context.SaveChangesAsync();
+
                 ViewData["Message"] = $"{p.Name} was added!";
                 return View();
             }
 
             //Show web page with errors
-            return View(p);
-        }
-
-        public IActionResult Edit(int id)
-        {
-            //get the product by id
-            Student p = StudentDb.GetStudent(context, id);
-
-            //show it on web page
             return View();
         }
 
+        public async Task<IActionResult> Edit(int id)
+        {
+            //get the product by id
+            Student? pToEdit = await context.Students.FindAsync(id);
+            if (pToEdit == null)
+            {
+                return NotFound();
+            }
+
+            //show it on web page
+            return View(pToEdit);
+        }
+
         [HttpPost]
-        public IActionResult Edit(Student p)
+        public async Task<IActionResult> Edit(Student pModel)
         {
             if (ModelState.IsValid)
             {
-                StudentDb.Update(context, p);
-                ViewData["Message"] = "Product Updated!";
-                return View(p);
+                context.Students.Update(pModel);
+                await context.SaveChangesAsync();
+
+                ViewData["Message"] = $"{pModel.Name} has been Updated!";
+                return RedirectToAction("Index");
             }
             //return view with errors
-            return View(p);
+            return View(pModel);
         }
 
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            Student p = StudentDb.GetStudent(context, id);
-            return View(p);
+            Student? pToDelete = await context.Students.FindAsync (id);
+            if (pToDelete == null)
+            {
+                return NotFound();
+            }
+
+            return View(pToDelete);
         }
 
         [HttpPost, ActionName("Delete")]
-        public IActionResult DeleteConfirm(int id)
+        public async Task<IActionResult> DeleteConfirm(int id)
         {
             //Get Product from database
-            Student p = StudentDb.GetStudent(context, id);
-
-            StudentDb.Delete(context, p);
+            Student? pToDelete = await context.Students.FindAsync(id);
+            if (pToDelete != null)
+            {
+               context.Students.Remove(pToDelete);
+                await context.SaveChangesAsync();
+                TempData["Message"] = pToDelete.Name + "deleted successfully";
+                return RedirectToAction("Index");
+            }
 
             return RedirectToAction("Index");
+        }
+
+        public async Task<IActionResult> Details(int id)
+        {
+            Student? pDetails = await context.Students.FindAsync(id);
+            
+            if (Details == null) 
+            { 
+                return NotFound();
+            }
+
+            return View(pDetails);
         }
     }
 }
